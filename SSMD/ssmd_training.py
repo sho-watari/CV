@@ -28,6 +28,7 @@ step_size = num_samples // sample_size * 10
 class SingleShotMultiDetector:
     def __init__(self, map_file, box_file, train):
         self.sample_count = 0
+        self.minibatch_count = 0
         
         self.noassign_bbox = np.concatenate(  # target for no assignment predict bounding box
             (np.concatenate(((center_offset(3, 7) + 0.5) / 7, prior_anchor(3, 7, anchor_boxes[2:])), axis=1),
@@ -46,24 +47,24 @@ class SingleShotMultiDetector:
                                                                     self.bbox: self.bbox_reader.streams.bboxes,
                                                                     self.label: self.bbox_reader.streams.labels})
 
-        minibatch_count = minibatch_data[self.bbox].num_sequences
+        self.minibatch_count = minibatch_data[self.bbox].num_sequences
 
         target_label = self.label.eval({self.label.arguments[0]: list(minibatch_data.values())[2]})
         target_bbox = self.bbox.eval({self.bbox.arguments[0]: list(minibatch_data.values())[1]})
 
         assign_image = list(minibatch_data.values())[0].asarray()
-        assign_bbox = np.repeat(self.noassign_bbox, minibatch_count, axis=0)
-        assign_conf = np.zeros((minibatch_count, num_bboxes, 1), dtype="float32")
-        assign_label = np.zeros((minibatch_count, num_bboxes, num_classes), dtype="float32")
+        assign_bbox = np.repeat(self.noassign_bbox, self.minibatch_count, axis=0)
+        assign_conf = np.zeros((self.minibatch_count, num_bboxes, 1), dtype="float32")
+        assign_label = np.zeros((self.minibatch_count, num_bboxes, num_classes), dtype="float32")
 
-        lambda_bbox = np.ones((minibatch_count, num_bboxes, 1), dtype="float32") * 0.1
-        lambda_conf = np.ones((minibatch_count, num_bboxes, 1), dtype="float32") * 0.1
-        lambda_prob = np.zeros((minibatch_count, num_bboxes, 1), dtype="float32")
+        lambda_bbox = np.ones((self.minibatch_count, num_bboxes, 1), dtype="float32") * 0.1
+        lambda_conf = np.ones((self.minibatch_count, num_bboxes, 1), dtype="float32") * 0.1
+        lambda_prob = np.zeros((self.minibatch_count, num_bboxes, 1), dtype="float32")
 
         output_model = model.eval({model.arguments[0]: assign_image})
 
         """ Dynamic Target Assignment """
-        for N in range(minibatch_count):
+        for N in range(self.minibatch_count):
             target_bboxes = np.repeat(target_bbox[N][np.newaxis, :, :], num_bboxes, axis=0).transpose(0, 2, 1)
             target_labels = target_label[N]
 
