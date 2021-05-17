@@ -6,8 +6,6 @@ MNIST - Fashion-MNIST
   <img src="fashion.png">
 </p>
 
-## Results
-
 ```
 Test Accuracy 93.70%
 ```
